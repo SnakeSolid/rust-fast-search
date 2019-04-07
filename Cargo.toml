@@ -1,0 +1,29 @@
+[package]
+name = "fast-search"
+version = "0.1.0"
+authors = ["snake"]
+edition = "2018"
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+[dependencies]
+env_logger = "0.6"
+fallible-iterator = "0.1"
+iron = "0.6"
+iron-cors = "0.8"
+jemallocator = "0.3"
+log = "0.4"
+mount = "0.4"
+postgres = "0.15"
+reqwest = "0.9"
+router = "0.6"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+serde_yaml = "0.8"
+staticfile = "0.5"
+structopt = "0.2"
+tantivy = "0.9"
+time = "0.1"
