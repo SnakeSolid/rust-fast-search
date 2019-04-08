@@ -88,6 +88,7 @@ impl DatasourceConfig {
 pub struct FieldConfig {
     name: String,
     column: String,
+    display: String,
     data_type: DataType,
 }
 
@@ -98,6 +99,10 @@ impl FieldConfig {
 
     pub fn column(&self) -> &str {
         &self.column
+    }
+
+    pub fn display(&self) -> &str {
+        &self.display
     }
 
     pub fn data_type(&self) -> DataType {

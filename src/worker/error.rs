@@ -61,15 +61,6 @@ impl WorkerError {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn value_error(error: PostgresError) -> WorkerError {
-        warn!("Value error - {}", error);
-
-        WorkerError {
-            message: format!("{}", error),
-        }
-    }
-
-    #[allow(clippy::needless_pass_by_value)]
     pub fn text_index_error(error: TextIndexError) -> WorkerError {
         warn!("Text index error - {}", error);
 

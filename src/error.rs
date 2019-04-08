@@ -42,6 +42,18 @@ impl ApplicationError {
             message: format!("{}", error),
         }
     }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn server_error<E>(error: E) -> ApplicationError
+    where
+        E: Error,
+    {
+        error!("Server error - {}", error);
+
+        ApplicationError::WorkerError {
+            message: format!("{}", error),
+        }
+    }
 }
 
 impl Error for ApplicationError {}
