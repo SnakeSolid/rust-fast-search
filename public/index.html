@@ -50,6 +50,52 @@
       </div>
     </div>
 
+    <div class="ui basic segment" data-bind="visible: isHelpVisible">
+      <div style="width: 800px; margin: 0px 60px;">
+        <h3 class="ui header">Query Language</h3>
+
+        <p>
+          Text in search box will be spitted to token using whitespace. Search algorithm will use works without
+          <code>':'</code> as plain text. All plain text words match to all text fields.
+        </p>
+
+        <p>
+          If any token contains <code>'+'</code> or <code>'-'</code> then will be applied special behavior. All tokens
+          marked by <code>'+'</code> must be in result. All tokens market by <code>'-'</code> must not be in result.
+        </p>
+
+        <p>
+          If any token contains <code>':'</code> then text before colon will be used as field name. All other text will
+          be used as value or range.
+        </p>
+
+        <p>
+          If value for numeric field contains <code>'..'</code>. Text before <code>'..'</code> will be used as start of
+          range. Text after <code>'..'</code> will be used as end range. If left or right range boundary is empty range
+          will be open. All ranges include its boundaries.
+        </p>
+
+        <h3 class="ui header">Examples</h3>
+
+        <p>Find documents containing word <code>'cat'</code> in any field: <code>'cat'</code>.</p>
+
+        <p>
+          Find documents containing word <code>'cat'</code> in any field and field weight between 2500 and 3500:
+          <code>'cat weight:2500..3500'</code>.
+        </p>
+
+        <p>Find documents containing filed weight greater or less to 3000: <code>'weight:..3000'</code>.</p>
+
+        <p>Find documents containing filed weight greater or equals to 3000: <code>'weight:3000..'</code>.</p>
+
+        <h3 class="ui header">Available Fields</h3>
+
+        <ul data-bind="foreach: fields">
+          <li><span data-bind="text: display"></span> &mdash; <code data-bind="text: name"></code></li>
+        </ul>
+      </div>
+    </div>
+
     <div class="ui basic segment" data-bind="visible: isResultsVisible">
       <table class="ui compact striped table" style="margin: 0px 60px;">
         <thead>

@@ -13,6 +13,10 @@ define(["knockout", "reqwest"], function(ko, reqwest) {
 			return this.results().length > 0;
 		}, this);
 
+		this.isHelpVisible = ko.pureComputed(function() {
+			return this.fields().length > 0 && this.results().length === 0;
+		}, this);
+
 		this.updateFileds();
 	};
 
