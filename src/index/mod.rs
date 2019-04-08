@@ -21,7 +21,6 @@ use tantivy::Index;
 use tantivy::IndexReader;
 use tantivy::IndexWriter;
 use tantivy::ReloadPolicy;
-use tantivy::Result as TantivyResult;
 
 #[derive(Debug, Clone)]
 pub struct TextIndexRef {
@@ -41,12 +40,13 @@ impl TextIndexRef {
 
     pub fn read<F, T>(&self, callback: F) -> TextIndexResult<T>
     where
-        F: FnOnce(&IndexReader, &HashMap<String, Field>) -> TantivyResult<T>,
+        F: FnOnce(&IndexReader, &HashMap<String, Field>) -> T,
     {
-        self.inner
+        Ok(self
+            .inner
             .lock()
             .map_err(TextIndexError::poison_error)?
-            .read(callback)
+            .read(callback))
     }
 
     pub fn write<F, T, E>(&mut self, callback: F) -> TextIndexResult<Result<T, E>>
@@ -114,11 +114,11 @@ impl TextIndex {
         })
     }
 
-    fn read<F, T>(&self, callback: F) -> TextIndexResult<T>
+    fn read<F, T>(&self, callback: F) -> T
     where
-        F: FnOnce(&IndexReader, &HashMap<String, Field>) -> TantivyResult<T>,
+        F: FnOnce(&IndexReader, &HashMap<String, Field>) -> T,
     {
-        callback(&self.reader, &self.fields).map_err(TextIndexError::read_error)
+        callback(&self.reader, &self.fields)
     }
 
     fn write<F, T, E>(&mut self, callback: F) -> TextIndexResult<Result<T, E>>

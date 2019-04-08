@@ -42,15 +42,6 @@ impl TextIndexError {
             message: format!("{}", error),
         }
     }
-
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn read_error(error: TantivyError) -> TextIndexError {
-        warn!("Read error - {}", error);
-
-        TextIndexError {
-            message: format!("{}", error),
-        }
-    }
 }
 
 impl Error for TextIndexError {}
