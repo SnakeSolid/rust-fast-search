@@ -175,9 +175,12 @@ impl SearchHandler {
                     }
                 }
             } else {
-                for field in text_fields.values() {
-                    terms.push((occur, self.create_term_query_text(field, part)));
-                }
+                let inner_terms: Vec<_> = text_fields
+                    .values()
+                    .map(|field| (Occur::Should, self.create_term_query_text(field, part)))
+                    .collect();
+
+                terms.push((occur, Box::new(BooleanQuery::from(inner_terms))));
             }
         }
 
