@@ -1,4 +1,6 @@
 use crate::config::ConfigRef;
+use crate::config::DataType;
+use crate::config::FieldConfig;
 use crate::handler::util::handle_empty;
 use iron::middleware::Handler;
 use iron::IronResult;
@@ -25,7 +27,7 @@ impl Handler for FieldsHandler {
                 .config
                 .schema()
                 .iter()
-                .map(|field| ResponseField::new(field.name(), field.display()))
+                .map(ResponseField::from_field)
                 .collect();
 
             Ok(result)
@@ -37,13 +39,22 @@ impl Handler for FieldsHandler {
 struct ResponseField {
     name: String,
     display: String,
+    description: String,
+    data_type: String,
 }
 
 impl ResponseField {
-    fn new(name: &str, display: &str) -> Self {
+    fn from_field(field: &FieldConfig) -> Self {
+        let data_type = match field.data_type() {
+            DataType::Int { .. } | DataType::UInt { .. } => "number",
+            DataType::Text => "string",
+        };
+
         ResponseField {
-            name: name.into(),
-            display: display.into(),
+            name: field.name().into(),
+            display: field.display().into(),
+            description: field.description().into(),
+            data_type: data_type.into(),
         }
     }
 }

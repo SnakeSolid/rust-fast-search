@@ -17,6 +17,14 @@ define(["knockout", "reqwest"], function(ko, reqwest) {
 			return this.fields().length > 0 && this.results().length === 0;
 		}, this);
 
+		this.isNumericField = function(field) {
+			return field.data_type === "number";
+		};
+
+		this.isStringField = function(field) {
+			return field.data_type === "string";
+		};
+
 		this.updateFileds();
 	};
 

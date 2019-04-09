@@ -91,7 +91,12 @@
         <h3 class="ui header">Available Fields</h3>
 
         <ul data-bind="foreach: fields">
-          <li><span data-bind="text: display"></span> &mdash; <code data-bind="text: name"></code></li>
+          <li>
+            <code>'</code><code data-bind="text: name"></code><code>'</code>
+            <span data-bind="if: $root.isNumericField($data)">(number)</span>
+            <span data-bind="if: $root.isStringField($data)">(string)</span> &mdash;
+            <span data-bind="text: description"></span>
+          </li>
         </ul>
       </div>
     </div>

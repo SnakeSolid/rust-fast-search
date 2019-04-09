@@ -89,6 +89,7 @@ pub struct FieldConfig {
     name: String,
     column: String,
     display: String,
+    description: String,
     data_type: DataType,
 }
 
@@ -103,6 +104,10 @@ impl FieldConfig {
 
     pub fn display(&self) -> &str {
         &self.display
+    }
+
+    pub fn description(&self) -> &str {
+        &self.description
     }
 
     pub fn data_type(&self) -> DataType {
