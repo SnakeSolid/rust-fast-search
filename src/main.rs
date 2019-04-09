@@ -23,7 +23,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 fn main() -> ApplicationResult {
     env_logger::init();
 
-    let options = dbg!(Options::from_args());
+    let options = Options::from_args();
     let config = config::load(options.config_path()).map_err(ApplicationError::config_error)?;
     let index = TextIndexRef::new(&config, options.new_index())
         .map_err(ApplicationError::text_index_error)?;

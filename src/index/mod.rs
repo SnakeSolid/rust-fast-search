@@ -104,7 +104,7 @@ impl TextIndex {
             .try_into()
             .map_err(TextIndexError::tantivy_error)?;
         let writer = index
-            .writer(0x0040_0000)
+            .writer(0x0100_0000)
             .map_err(TextIndexError::tantivy_error)?;
 
         Ok(TextIndex {
