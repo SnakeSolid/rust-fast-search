@@ -16,8 +16,8 @@ requirejs.config({
 
 // Start the main application logic.
 requirejs(
-	["knockout", "Application"],
-	function(ko, Application) {
+	["knockout", "EnterKey", "Application"],
+	function(ko, EnterKey, Application) {
 		const application = new Application();
 
 		ko.applyBindings(application);
