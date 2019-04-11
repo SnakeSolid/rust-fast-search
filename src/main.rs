@@ -8,6 +8,7 @@ mod error;
 mod handler;
 mod index;
 mod options;
+mod parser;
 mod server;
 mod worker;
 

@@ -3,6 +3,9 @@ use crate::handler::util::handle_request;
 use crate::handler::HandlerError;
 use crate::handler::HandlerResult;
 use crate::index::TextIndexRef;
+use crate::parser::parse_query;
+use crate::parser::Occurance;
+use crate::parser::Token;
 use iron::middleware::Handler;
 use iron::IronResult;
 use iron::Request as IronRequest;
@@ -43,12 +46,12 @@ impl SearchHandler {
         &self,
         reader: &IndexReader,
         schema: &HashMap<String, Field>,
-        query: &str,
+        tokens: &[Token],
     ) -> HandlerResult<Vec<HashMap<String, Option<String>>>> {
         let mut result = Vec::new();
         let searcher = reader.searcher();
         let index_schema = searcher.schema();
-        let query = self.parse_query(query, schema, index_schema)?;
+        let query = self.build_query(tokens, schema, index_schema)?;
         let top_docs = searcher
             .search(&query, &TopDocs::with_limit(50))
             .map_err(|err| HandlerError::new(&format!("Search error - {:?}", err)))?;
@@ -73,9 +76,9 @@ impl SearchHandler {
         Ok(result)
     }
 
-    fn parse_query(
+    fn build_query(
         &self,
-        query: &str,
+        tokens: &[Token],
         field_schema: &HashMap<String, Field>,
         index_schema: &Schema,
     ) -> HandlerResult<Box<Query>> {
@@ -106,53 +109,37 @@ impl SearchHandler {
             }
         }
 
-        let mut terms: Vec<(Occur, Box<Query>)> = Vec::new();
+        let mut terms: Vec<(_, Box<Query>)> = Vec::new();
 
-        for part in query.split(char::is_whitespace).filter(|s| !s.is_empty()) {
-            let mut index = 0;
-            let mut occur = Occur::Should;
+        for token in tokens {
+            match token {
+                Token::Text { occurance, strings } => {
+                    let occur = self.map_occurance(occurance);
 
-            if part.starts_with('+') {
-                index += 1;
-                occur = Occur::Must;
-            } else if part.starts_with('-') {
-                index += 1;
-                occur = Occur::MustNot;
-            }
+                    for string in strings {
+                        let string = string.to_lowercase();
+                        let inner_terms: Vec<_> = text_fields
+                            .values()
+                            .map(|field| {
+                                (Occur::Should, self.create_term_query_text(field, &string))
+                            })
+                            .collect();
 
-            let part = &part[index..];
-
-            if let Some(index) = part.find(":") {
-                let name = &part[0..index];
-                let value = &part[index + 1..];
-
-                if let Some(index) = value.find("..") {
-                    let left_text = &value[..index];
-                    let right_text = &value[index + 2..];
-
-                    if let Some(field) = u64_fields.get(name) {
-                        let left_bound = self.parse_bound(left_text)?;
-                        let right_bound = self.parse_bound(right_text)?;
-
-                        terms.push((
-                            occur,
-                            self.create_bound_query_u64(field, left_bound, right_bound),
-                        ));
-                    } else if let Some(field) = i64_fields.get(name) {
-                        let left_bound = self.parse_bound(left_text)?;
-                        let right_bound = self.parse_bound(right_text)?;
-
-                        terms.push((
-                            occur,
-                            self.create_bound_query_i64(field, left_bound, right_bound),
-                        ));
-                    } else {
-                        return Err(HandlerError::new(&format!("Field `{}` not numeric", name)));
+                        terms.push((occur, Box::new(BooleanQuery::from(inner_terms))));
                     }
-                } else {
-                    if let Some(field) = text_fields.get(name) {
-                        terms.push((occur, self.create_term_query_text(field, value)));
-                    } else if let Some(field) = u64_fields.get(name) {
+                }
+                Token::FilterEquals {
+                    occurance,
+                    field,
+                    value,
+                } => {
+                    let occur = self.map_occurance(occurance);
+
+                    if let Some(field) = text_fields.get(field.as_str()) {
+                        let value = value.to_lowercase();
+
+                        terms.push((occur, self.create_term_query_text(field, &value)));
+                    } else if let Some(field) = u64_fields.get(field.as_str()) {
                         let value = value.parse().map_err(|err| {
                             HandlerError::new(&format!(
                                 "Failed to parse value `{}` - {}",
@@ -161,7 +148,7 @@ impl SearchHandler {
                         })?;
 
                         terms.push((occur, self.create_term_query_u64(field, value)));
-                    } else if let Some(field) = i64_fields.get(name) {
+                    } else if let Some(field) = i64_fields.get(field.as_str()) {
                         let value = value.parse().map_err(|err| {
                             HandlerError::new(&format!(
                                 "Failed to parse value `{}` - {}",
@@ -171,35 +158,66 @@ impl SearchHandler {
 
                         terms.push((occur, self.create_term_query_i64(field, value)));
                     } else {
-                        return Err(HandlerError::new(&format!("Field `{}` not defined", name)));
+                        return Err(HandlerError::new(&format!("Field `{}` not defined", field)));
                     }
                 }
-            } else {
-                let inner_terms: Vec<_> = text_fields
-                    .values()
-                    .map(|field| (Occur::Should, self.create_term_query_text(field, part)))
-                    .collect();
+                Token::FilterRange {
+                    occurance,
+                    field,
+                    left_bound,
+                    right_bound,
+                } => {
+                    let occur = self.map_occurance(occurance);
 
-                terms.push((occur, Box::new(BooleanQuery::from(inner_terms))));
+                    if let Some(field) = u64_fields.get(field.as_str()) {
+                        let left_bound = self.parse_bound(&left_bound)?;
+                        let right_bound = self.parse_bound(&right_bound)?;
+
+                        terms.push((
+                            occur,
+                            self.create_bound_query_u64(field, left_bound, right_bound),
+                        ));
+                    } else if let Some(field) = i64_fields.get(field.as_str()) {
+                        let left_bound = self.parse_bound(&left_bound)?;
+                        let right_bound = self.parse_bound(&right_bound)?;
+
+                        terms.push((
+                            occur,
+                            self.create_bound_query_i64(field, left_bound, right_bound),
+                        ));
+                    } else {
+                        return Err(HandlerError::new(&format!("Field `{}` not numeric", field)));
+                    }
+                }
             }
         }
 
         Ok(Box::new(BooleanQuery::from(terms)))
     }
 
-    fn parse_bound<T, E>(&self, value: &str) -> HandlerResult<Bound<T>>
+    fn map_occurance(&self, occurance: &Option<Occurance>) -> Occur {
+        match occurance {
+            Some(Occurance::Must) => Occur::Must,
+            Some(Occurance::MustNot) => Occur::MustNot,
+            None => Occur::Should,
+        }
+    }
+
+    fn parse_bound<T, E>(&self, value: &Option<String>) -> HandlerResult<Bound<T>>
     where
         T: FromStr<Err = E>,
         E: Display,
     {
-        if value.is_empty() {
-            Ok(Bound::Unbounded)
-        } else {
-            let value = value.parse().map_err(|err| {
-                HandlerError::new(&format!("Failed to parse value `{}` - {}", value, err))
-            })?;
+        match value {
+            Some(value) if value.is_empty() => Ok(Bound::Unbounded),
+            Some(value) => {
+                let value = value.parse().map_err(|err| {
+                    HandlerError::new(&format!("Failed to parse value `{}` - {}", value, err))
+                })?;
 
-            Ok(Bound::Included(value))
+                Ok(Bound::Included(value))
+            }
+            None => Ok(Bound::Unbounded),
         }
     }
 
@@ -254,12 +272,13 @@ impl SearchHandler {
 impl Handler for SearchHandler {
     fn handle(&self, request: &mut IronRequest) -> IronResult<IronResponse> {
         handle_request(request, move |request: Request| {
-            let query = request.query;
+            let tokens = parse_query(&request.query)
+                .map_err(|err| HandlerError::new(&format!("{}", err)))?;
 
-            if !query.is_empty() {
+            if !tokens.is_empty() {
                 Ok(self
                     .text_index
-                    .read(|reader, schema| self.process_query(reader, schema, &query))
+                    .read(|reader, schema| self.process_query(reader, schema, &tokens))
                     .map_err(|err| HandlerError::new(&format!("{}", err)))??)
             } else {
                 Ok(Vec::new())
