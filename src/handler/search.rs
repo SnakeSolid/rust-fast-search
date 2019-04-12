@@ -120,6 +120,7 @@ impl SearchHandler {
                         let string = string.to_lowercase();
                         let inner_terms: Vec<_> = text_fields
                             .values()
+                            .cloned()
                             .map(|field| {
                                 (Occur::Should, self.create_term_query_text(field, &string))
                             })
@@ -135,11 +136,11 @@ impl SearchHandler {
                 } => {
                     let occur = self.map_occurance(occurance);
 
-                    if let Some(field) = text_fields.get(field.as_str()) {
+                    if let Some(field) = text_fields.get(field.as_str()).cloned() {
                         let value = value.to_lowercase();
 
                         terms.push((occur, self.create_term_query_text(field, &value)));
-                    } else if let Some(field) = u64_fields.get(field.as_str()) {
+                    } else if let Some(field) = u64_fields.get(field.as_str()).cloned() {
                         let value = value.parse().map_err(|err| {
                             HandlerError::new(&format!(
                                 "Failed to parse value `{}` - {}",
@@ -148,7 +149,7 @@ impl SearchHandler {
                         })?;
 
                         terms.push((occur, self.create_term_query_u64(field, value)));
-                    } else if let Some(field) = i64_fields.get(field.as_str()) {
+                    } else if let Some(field) = i64_fields.get(field.as_str()).cloned() {
                         let value = value.parse().map_err(|err| {
                             HandlerError::new(&format!(
                                 "Failed to parse value `{}` - {}",
@@ -169,7 +170,7 @@ impl SearchHandler {
                 } => {
                     let occur = self.map_occurance(occurance);
 
-                    if let Some(field) = u64_fields.get(field.as_str()) {
+                    if let Some(field) = u64_fields.get(field.as_str()).cloned() {
                         let left_bound = self.parse_bound(&left_bound)?;
                         let right_bound = self.parse_bound(&right_bound)?;
 
@@ -177,7 +178,7 @@ impl SearchHandler {
                             occur,
                             self.create_bound_query_u64(field, left_bound, right_bound),
                         ));
-                    } else if let Some(field) = i64_fields.get(field.as_str()) {
+                    } else if let Some(field) = i64_fields.get(field.as_str()).cloned() {
                         let left_bound = self.parse_bound(&left_bound)?;
                         let right_bound = self.parse_bound(&right_bound)?;
 
@@ -223,47 +224,39 @@ impl SearchHandler {
 
     fn create_bound_query_i64(
         &self,
-        field: &Field,
+        field: Field,
         left_bound: Bound<i64>,
         right_bound: Bound<i64>,
     ) -> Box<Query> {
-        Box::new(RangeQuery::new_i64_bounds(
-            field.clone(),
-            left_bound,
-            right_bound,
-        ))
+        Box::new(RangeQuery::new_i64_bounds(field, left_bound, right_bound))
     }
 
     fn create_bound_query_u64(
         &self,
-        field: &Field,
+        field: Field,
         left_bound: Bound<u64>,
         right_bound: Bound<u64>,
     ) -> Box<Query> {
-        Box::new(RangeQuery::new_u64_bounds(
-            field.clone(),
-            left_bound,
-            right_bound,
-        ))
+        Box::new(RangeQuery::new_u64_bounds(field, left_bound, right_bound))
     }
 
-    fn create_term_query_i64(&self, field: &Field, value: i64) -> Box<Query> {
+    fn create_term_query_i64(&self, field: Field, value: i64) -> Box<Query> {
         Box::new(TermQuery::new(
-            Term::from_field_i64(field.clone(), value),
+            Term::from_field_i64(field, value),
             IndexRecordOption::WithFreqs,
         ))
     }
 
-    fn create_term_query_u64(&self, field: &Field, value: u64) -> Box<Query> {
+    fn create_term_query_u64(&self, field: Field, value: u64) -> Box<Query> {
         Box::new(TermQuery::new(
-            Term::from_field_u64(field.clone(), value),
+            Term::from_field_u64(field, value),
             IndexRecordOption::WithFreqs,
         ))
     }
 
-    fn create_term_query_text(&self, field: &Field, value: &str) -> Box<Query> {
+    fn create_term_query_text(&self, field: Field, value: &str) -> Box<Query> {
         Box::new(TermQuery::new(
-            Term::from_field_text(field.clone(), value),
+            Term::from_field_text(field, value),
             IndexRecordOption::WithFreqs,
         ))
     }
